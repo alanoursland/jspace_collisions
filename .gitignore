@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.ruff_cache/
+.pytest_cache/
+.mypy_cache/
+.ipynb_checkpoints/
+
+# Large payloads: keep directory structure + READMEs/manifests, ignore data
+data/**
+!data/README.md
+!data/**/*.md
+!data/**/manifest.json
+results/**
+!results/README.md
+!results/**/*.md
+
+# Model caches
+.cache/
+*.safetensors
+*.gguf
+*.pt
+*.bin
+
+# Environment
+.env
+.envrc
