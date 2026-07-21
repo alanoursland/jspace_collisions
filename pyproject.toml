@@ -38,3 +38,6 @@ testpaths = ["tests"]
 [tool.ruff]
 line-length = 100
 src = ["src", "tests"]
+
+[tool.ruff.lint]
+ignore = ["E741"]  # `l` for layer index, matching the jlens reference code

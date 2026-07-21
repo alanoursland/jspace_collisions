@@ -43,14 +43,22 @@ there.
 - [x] Lens and patching interfaces defined (`src/jspace/lens/`,
       `src/jspace/patching/`) as typed protocols so experiment code can be
       written before the reference implementation is integrated
-- [ ] Obtain and pin the Anthropic reference implementation
-      (github.com/anthropics/jacobian-lens). Not yet accessible from this
-      session (GitHub scope is limited to this repo); either add it as a
-      session source, vendor a pinned copy, or add it as a git dependency.
+- [x] Obtain and pin the Anthropic reference implementation — via the user's
+      fork `alanoursland/jacobian-lens` (commit 581d398), installed editable;
+      all 32 of its tests pass in this environment. Our lens layer is now an
+      adapter over `jlens.JacobianLens` (`src/jspace/lens/adapter.py`), not a
+      reimplementation. Method notes: `docs/jlens_method.md`.
 
 ## Phase 1 — Baseline / replication (program Month 1; E1, E9 controls)
 
 Goal: a working J-lens on at least one open model, with trustworthy metrics.
+
+Status 2026-07-21: in progress on CPU. Lens fitting on Qwen2.5-0.5B over 100
+wikitext prompts (~4 min/prompt, checkpointed, `scripts/fit_jlens.py`);
+sweep + analysis pipeline validated end-to-end with an interim checkpoint
+lens (`experiments/e02_collision_search/`). E1 qualitative replication
+examples ship with the reference repo (`/workspace/jacobian-lens/data/`) and
+run next.
 
 1. Integrate the reference implementation behind `jspace.lens.JLens`
    (adapter conforming to `lens/interface.py`).

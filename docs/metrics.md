@@ -49,6 +49,15 @@ patch transfer success, fiber behavior variance
 
 ## Null baselines (E9)
 
-Every readout metric is reported alongside the same metric computed with a
-shuffled-label lens and a random-orthogonal-transport lens. A finding requires
-separation from both.
+Every readout metric is reported alongside its null-control baseline — but
+the *right* control depends on the claim:
+
+- **Distance claims** (collision rates, J-distance thresholds): a fixed vocab
+  permutation leaves all pairwise distances unchanged, so ShuffledLens is
+  vacuous here. Calibrate against RandomTransportLens (random orthogonal J_l,
+  Frobenius-matched) and LogitLensBaseline (identity transport).
+- **Content claims** ("the lens reads out token X"): calibrate against
+  ShuffledLens; a shuffled lens recovering "meaningful" tokens above chance
+  flags over-interpretation.
+
+A finding requires separation from the applicable controls.

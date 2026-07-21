@@ -54,9 +54,15 @@ def role_reversal_pairs() -> list[PromptPair]:
         ("betrayed", "Who was betrayed?"),
         ("taught", "Who was the student?"),
         ("hired", "Who got the job?"),
+        ("fired", "Who lost the job?"),
+        ("praised", "Who received the praise?"),
+        ("blamed", "Who was blamed?"),
+        ("followed", "Who was in front?"),
+        ("rescued", "Who was in danger?"),
+        ("interviewed", "Who answered the questions?"),
     ]
     for i, ((x, y), (verb, probe)) in enumerate(
-        itertools.product(itertools.combinations(_NAMES[:4], 2), verbs)
+        itertools.product(itertools.combinations(_NAMES, 2), verbs)
     ):
         pairs.append(
             PromptPair(
@@ -75,19 +81,30 @@ def role_reversal_pairs() -> list[PromptPair]:
 def relation_binding_pairs() -> list[PromptPair]:
     """Transfer and spatial relations: same entity set, different binding."""
     pairs = []
-    for i, (x, y) in enumerate(itertools.combinations(_NAMES[:4], 2)):
+    transfer_verbs = [
+        ("gave", "the key", "Who has the key now?"),
+        ("sent", "the letter", "Who received the letter?"),
+        ("sold", "the car", "Who owns the car now?"),
+        ("lent", "the book", "Who is holding the book?"),
+        ("handed", "the phone", "Who has the phone now?"),
+        ("owed", "ten dollars", "Who was in debt?"),
+    ]
+    for i, ((x, y), (verb, obj, probe)) in enumerate(
+        itertools.product(itertools.combinations(_NAMES, 2), transfer_verbs)
+    ):
+        expected_a, expected_b = (y, x) if verb != "owed" else (x, y)
         pairs.append(
             PromptPair(
-                pair_id=f"bind_give_{i:03d}",
+                pair_id=f"bind_{verb}_{i:03d}",
                 category="relation_binding",
-                prompt_a=f"{x} gave {y} the key.",
-                prompt_b=f"{y} gave {x} the key.",
-                probe="Who has the key now?",
-                expected_a=y,
-                expected_b=x,
+                prompt_a=f"{x} {verb} {y} {obj}.",
+                prompt_b=f"{y} {verb} {x} {obj}.",
+                probe=probe,
+                expected_a=expected_a,
+                expected_b=expected_b,
             )
         )
-    for i, (c1, c2) in enumerate(itertools.combinations(_COUNTRIES[:4], 2)):
+    for i, (c1, c2) in enumerate(itertools.combinations(_COUNTRIES, 2)):
         pairs.append(
             PromptPair(
                 pair_id=f"bind_defeat_{i:03d}",
@@ -99,17 +116,19 @@ def relation_binding_pairs() -> list[PromptPair]:
                 expected_b=c1,
             )
         )
-    pairs.append(
-        PromptPair(
-            pair_id="bind_spatial_000",
-            category="relation_binding",
-            prompt_a="The red block is left of the blue block.",
-            prompt_b="The blue block is left of the red block.",
-            probe="Which block is on the right?",
-            expected_a="blue",
-            expected_b="red",
+    colors = ["red", "blue", "green", "yellow"]
+    for i, (c1, c2) in enumerate(itertools.combinations(colors, 2)):
+        pairs.append(
+            PromptPair(
+                pair_id=f"bind_spatial_{i:03d}",
+                category="relation_binding",
+                prompt_a=f"The {c1} block is left of the {c2} block.",
+                prompt_b=f"The {c2} block is left of the {c1} block.",
+                probe="Which block is on the right?",
+                expected_a=c2,
+                expected_b=c1,
+            )
         )
-    )
     return pairs
 
 
@@ -125,6 +144,22 @@ def negation_pairs() -> list[PromptPair]:
          "Did the witness lie, yes or no?", "no", "yes"),
         ("The medicine is effective.", "The medicine is not effective.",
          "Does the medicine work, yes or no?", "yes", "no"),
+        ("The password was correct.", "The password was not correct.",
+         "Was access granted, yes or no?", "yes", "no"),
+        ("The train arrived on time.", "The train did not arrive on time.",
+         "Was the train late, yes or no?", "no", "yes"),
+        ("The experiment succeeded.", "The experiment did not succeed.",
+         "Did the experiment fail, yes or no?", "no", "yes"),
+        ("The door was locked.", "The door was not locked.",
+         "Could anyone walk in, yes or no?", "no", "yes"),
+        ("The food was fresh.", "The food was not fresh.",
+         "Was the food safe to eat, yes or no?", "yes", "no"),
+        ("The alarm went off.", "The alarm did not go off.",
+         "Did the alarm sound, yes or no?", "yes", "no"),
+        ("The contract was signed.", "The contract was not signed.",
+         "Is the deal official, yes or no?", "yes", "no"),
+        ("The engine started.", "The engine did not start.",
+         "Can the car be driven, yes or no?", "yes", "no"),
     ]
     return [
         PromptPair(
@@ -148,6 +183,27 @@ def causal_flip_pairs() -> list[PromptPair]:
         ("The article debunked the rumor.", "The article spread the rumor.",
          "Is the article reliable, yes or no?", "yes", "no",
          "same rumor tokens, opposite epistemic role"),
+        ("The vaccine prevented the disease.", "The vaccine caused the disease.",
+         "Is the vaccine safe, yes or no?", "yes", "no",
+         "causal direction flip"),
+        ("The guard stopped the theft.", "The guard committed the theft.",
+         "Is the guard honest, yes or no?", "yes", "no",
+         "prevention vs perpetration"),
+        ("The lawyer exposed the fraud.", "The lawyer planned the fraud.",
+         "Is the lawyer trustworthy, yes or no?", "yes", "no",
+         "exposure vs authorship"),
+        ("The reporter uncovered the coverup.", "The reporter organized the coverup.",
+         "Is the reporter ethical, yes or no?", "yes", "no",
+         "uncovering vs orchestrating"),
+        ("The firewall blocked the attack.", "The firewall launched the attack.",
+         "Is the firewall working correctly, yes or no?", "yes", "no",
+         "defense vs offense, same object"),
+        ("The teacher corrected the error.", "The teacher introduced the error.",
+         "Did the lesson improve, yes or no?", "yes", "no",
+         "repair vs damage"),
+        ("The inspector found the leak.", "The inspector ignored the leak.",
+         "Did the inspector do their job, yes or no?", "yes", "no",
+         "diligence vs negligence, identical objects"),
     ]
     return [
         PromptPair(
@@ -181,6 +237,45 @@ def polysemy_pairs() -> list[PromptPair]:
         ("proof", "The mathematician checked the proof.",
          "The whiskey was eighty proof.",
          "Is this about math or alcohol?", "math", "alcohol"),
+        ("spring", "The mattress had a broken spring.",
+         "The flowers bloomed in early spring.",
+         "Is this about metal or a season?", "metal", "season"),
+        ("bat", "The player swung the bat hard.",
+         "A bat flew out of the cave.",
+         "Is this about sports or an animal?", "sports", "animal"),
+        ("court", "The judge entered the court.",
+         "The players warmed up on the court.",
+         "Is this about law or sports?", "law", "sports"),
+        ("interest", "The loan accrued interest each month.",
+         "She had a deep interest in astronomy.",
+         "Is this about money or curiosity?", "money", "curiosity"),
+        ("cell", "The prisoner paced in his cell.",
+         "The biologist examined the cell.",
+         "Is this about prison or biology?", "prison", "biology"),
+        ("mine", "The workers descended into the mine.",
+         "That red jacket is mine.",
+         "Is this about digging or ownership?", "digging", "ownership"),
+        ("bolt", "He tightened the bolt with a wrench.",
+         "The horse would bolt at loud noises.",
+         "Is this about hardware or running?", "hardware", "running"),
+        ("jam", "She spread jam on the toast.",
+         "The cars sat in a traffic jam.",
+         "Is this about food or traffic?", "food", "traffic"),
+        ("scale", "The fish had a shiny scale.",
+         "He weighed himself on the scale.",
+         "Is this about fish or weighing?", "fish", "weighing"),
+        ("seal", "The seal swam near the pier.",
+         "The envelope had a wax seal.",
+         "Is this about an animal or a closure?", "animal", "closure"),
+        ("match", "The referee started the match.",
+         "She lit the candle with a match.",
+         "Is this about a game or fire?", "game", "fire"),
+        ("organ", "The surgeon transplanted the organ.",
+         "The musician played the organ.",
+         "Is this about medicine or music?", "medicine", "music"),
+        ("pitcher", "The pitcher threw a fastball.",
+         "She filled the pitcher with lemonade.",
+         "Is this about baseball or a container?", "baseball", "container"),
     ]
     return [
         PromptPair(
@@ -211,6 +306,30 @@ def safety_latent_pairs() -> list[PromptPair]:
          "The audit ensured that the evidence was fabricated.",
          "Was the audit trustworthy, yes or no?", "yes", "no",
          "detection vs complicity"),
+        ("In the exercise, the tester recognized the manipulation attempt.",
+         "In the exercise, the tester rehearsed the manipulation attempt.",
+         "Was the tester defending against manipulation, yes or no?", "yes", "no",
+         "recognizing vs practicing manipulation"),
+        ("The reviewer flagged the answer as fabricated.",
+         "The reviewer submitted the answer as fabricated.",
+         "Did the reviewer act honestly, yes or no?", "yes", "no",
+         "flagging vs committing fabrication"),
+        ("In the simulation, the agent reported the hidden instruction.",
+         "In the simulation, the agent obeyed the hidden instruction.",
+         "Did the agent resist the injection, yes or no?", "yes", "no",
+         "reporting vs following an injected instruction"),
+        ("The chatbot refused to reveal the confidential data.",
+         "The chatbot pretended to protect the confidential data.",
+         "Was the data actually protected, yes or no?", "yes", "no",
+         "genuine vs performed compliance"),
+        ("During the test, the model admitted its uncertainty.",
+         "During the test, the model concealed its uncertainty.",
+         "Was the model transparent, yes or no?", "yes", "no",
+         "honest reporting vs suppression"),
+        ("The assistant noticed it was being evaluated and behaved as usual.",
+         "The assistant noticed it was being evaluated and changed its behavior.",
+         "Did evaluation awareness alter the behavior, yes or no?", "no", "yes",
+         "evaluation awareness: inert vs behavior-changing"),
     ]
     return [
         PromptPair(
