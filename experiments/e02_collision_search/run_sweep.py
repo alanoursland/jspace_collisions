@@ -83,58 +83,88 @@ def main() -> None:
     if args.limit:
         pairs = pairs[: args.limit]
 
-    records = []
-    t0 = time.time()
-    for i, pair in enumerate(pairs):
-        cap_a = wrapper.capture(pair.prompt_a, layers=layers)
-        cap_b = wrapper.capture(pair.prompt_b, layers=layers)
-        answers = [pair.expected_a, pair.expected_b]
-        beh_a = wrapper.answer_distribution(pair.full_a(), answers)
-        beh_b = wrapper.answer_distribution(pair.full_b(), answers)
-        behavior = {
-            "behavior_js": js_divergence(beh_a, beh_b),
-            "answer_a_dist": beh_a.tolist(),
-            "answer_b_dist": beh_b.tolist(),
-            # does the model actually flip its preferred answer across variants?
-            "answer_flip": bool(np.argmax(beh_a) != np.argmax(beh_b)),
-            # is each variant answered as expected? (task competence check)
-            "correct_a": bool(np.argmax(beh_a) == 0),
-            "correct_b": bool(np.argmax(beh_b) == 1),
-        }
-        for layer in layers:
-            ha = cap_a.activations[layer][-1].numpy()
-            hb = cap_b.activations[layer][-1].numpy()
-            for lens in lenses:
-                jd = jdistances(lens.readout_logits(ha, layer), lens.readout_logits(hb, layer))
-                records.append(
-                    {
-                        "pair_id": pair.pair_id,
-                        "category": pair.category,
-                        "layer": layer,
-                        "lens": lens.name,
-                        **jd,
-                        **behavior,
-                        "collision_score": collision_score(jd["js"], behavior["behavior_js"]),
-                    }
-                )
-        if (i + 1) % 10 == 0 or i == len(pairs) - 1:
-            rate = (time.time() - t0) / (i + 1)
-            print(f"{i + 1}/{len(pairs)} pairs ({rate:.1f}s/pair)")
-
+    # Resume support: pairs already fully present in records.jsonl are
+    # skipped, and new records are appended per-pair (container restarts
+    # kill long runs; see docs/notebook 2026-07-21 infra entry).
     out_file = out_dir / "records.jsonl"
-    with out_file.open("w") as f:
-        for r in records:
-            f.write(json.dumps(r) + "\n")
+    done_pairs: set[str] = set()
+    if out_file.exists():
+        counts: dict[str, int] = {}
+        for line in out_file.read_text().splitlines():
+            r = json.loads(line)
+            counts[r["pair_id"]] = counts.get(r["pair_id"], 0) + 1
+        expected = len(layers) * len(lenses)
+        done_pairs = {pid for pid, n in counts.items() if n >= expected}
+        if done_pairs:
+            print(f"resuming: {len(done_pairs)}/{len(pairs)} pairs already complete")
+            # drop partial records for pairs that were interrupted mid-write
+            kept = [
+                line
+                for line in out_file.read_text().splitlines()
+                if json.loads(line)["pair_id"] in done_pairs
+            ]
+            out_file.write_text("\n".join(kept) + ("\n" if kept else ""))
+
+    t0 = time.time()
+    n_new = 0
+    with out_file.open("a") as sink:
+        for i, pair in enumerate(pairs):
+            if pair.pair_id in done_pairs:
+                continue
+            cap_a = wrapper.capture(pair.prompt_a, layers=layers)
+            cap_b = wrapper.capture(pair.prompt_b, layers=layers)
+            answers = [pair.expected_a, pair.expected_b]
+            beh_a = wrapper.answer_distribution(pair.full_a(), answers)
+            beh_b = wrapper.answer_distribution(pair.full_b(), answers)
+            behavior = {
+                "behavior_js": js_divergence(beh_a, beh_b),
+                "answer_a_dist": beh_a.tolist(),
+                "answer_b_dist": beh_b.tolist(),
+                # does the model actually flip its preferred answer across variants?
+                "answer_flip": bool(np.argmax(beh_a) != np.argmax(beh_b)),
+                # is each variant answered as expected? (task competence check)
+                "correct_a": bool(np.argmax(beh_a) == 0),
+                "correct_b": bool(np.argmax(beh_b) == 1),
+            }
+            pair_records = []
+            for layer in layers:
+                ha = cap_a.activations[layer][-1].numpy()
+                hb = cap_b.activations[layer][-1].numpy()
+                for lens in lenses:
+                    jd = jdistances(
+                        lens.readout_logits(ha, layer), lens.readout_logits(hb, layer)
+                    )
+                    pair_records.append(
+                        {
+                            "pair_id": pair.pair_id,
+                            "category": pair.category,
+                            "layer": layer,
+                            "lens": lens.name,
+                            **jd,
+                            **behavior,
+                            "collision_score": collision_score(
+                                jd["js"], behavior["behavior_js"]
+                            ),
+                        }
+                    )
+            sink.write("".join(json.dumps(r) + "\n" for r in pair_records))
+            sink.flush()
+            n_new += 1
+            if (i + 1) % 10 == 0 or i == len(pairs) - 1:
+                rate = (time.time() - t0) / max(n_new, 1)
+                print(f"{i + 1}/{len(pairs)} pairs ({rate:.1f}s/pair this run)")
+
+    n_records = sum(1 for _ in out_file.open())
     manifest = {
         "model": args.model,
         "lens": args.lens,
         "layers": layers,
         "n_pairs": len(pairs),
-        "n_records": len(records),
-        "seconds": round(time.time() - t0),
+        "n_records": n_records,
+        "seconds_this_run": round(time.time() - t0),
     }
     (out_dir / "manifest.json").write_text(json.dumps(manifest, indent=2))
-    print(f"wrote {len(records)} records to {out_file}")
+    print(f"{n_records} records in {out_file} ({n_new} pairs this run)")
 
 
 if __name__ == "__main__":
