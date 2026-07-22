@@ -31,8 +31,9 @@ results/**
 .cache/
 *.safetensors
 *.gguf
-*.pt
 *.bin
+# .pt is NOT globally ignored: fitted lens artifacts in data/lens/ are
+# tracked; interim/checkpoint files there are excluded above
 
 # Environment
 .env
