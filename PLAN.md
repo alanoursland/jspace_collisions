@@ -53,12 +53,17 @@ there.
 
 Goal: a working J-lens on at least one open model, with trustworthy metrics.
 
-Status 2026-07-21: in progress on CPU. Lens fitting on Qwen2.5-0.5B over 100
-wikitext prompts (~4 min/prompt, checkpointed, `scripts/fit_jlens.py`);
-sweep + analysis pipeline validated end-to-end with an interim checkpoint
-lens (`experiments/e02_collision_search/`). E1 qualitative replication
-examples ship with the reference repo (`/workspace/jacobian-lens/data/`) and
-run next.
+Status 2026-07-22: substantially COMPLETE on CPU at 0.5B scale.
+- Lens fitted (100 wikitext prompts, committed: `data/lens/`), convergence
+  vs a 45-prompt interim lens verified (notebook 2026-07-22).
+- E1 replication: multihop pass@1 0.34 / typo 0.18 vs 0.00 shuffled
+  control — the paper's core readout claim replicates on Qwen2.5-0.5B.
+- E2 full sweep run twice (interim + final lens): stable role-reversal
+  collisions found at L12-16 (J-dist ~0.001-0.02, top-20 Jaccard up to
+  0.9, behavior JS >0.5 with confident correct-but-opposite answers).
+- Remaining for Phase 1/2 exit: paraphrase/seed stability, readout
+  position sweep, patch-confirmation of collisions (the crux), larger
+  model (GPU).
 
 1. Integrate the reference implementation behind `jspace.lens.JLens`
    (adapter conforming to `lens/interface.py`).
