@@ -28,5 +28,20 @@ pairs dip to J-dist 0.060 at L16 (the collision band) then double to ~0.19
 by L20; polysemy sense-resolution stays unreadable until L20-22 (0.07 at
 L16 -> 0.55-0.64 at L20-22).
 
-Final E1 evals (pass@k vs controls with the 100-prompt lens) running;
-results appended to `results/e01_replication/evals_final/` when done.
+## Final E1 evals: also converged
+
+100-prompt lens: multihop pass@1 0.34 (identical to interim), typo 0.16
+(interim 0.18), association still a null; all controls at ~0.00 as before.
+Full table: `results/e01_replication/evals_final/summary.md`.
+
+## Phase 1 wrap (0.5B/CPU scope)
+
+Both headline results now stand on the final lens with convergence checks:
+1. Replication: the J-lens reads out latent verbalizable content far above
+   all controls (E1).
+2. Collisions: the same lens cannot distinguish role-reversed bindings the
+   model itself resolves correctly and confidently (E2), stably across
+   lens corpus sizes.
+
+Open before these become paper claims: paraphrase/seed stability, readout
+position sweep, patch confirmation (crux), larger/instruct model.
