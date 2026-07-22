@@ -73,11 +73,17 @@ class ModelWrapper:
     # -- behavior probing ---------------------------------------------------
 
     @torch.no_grad()
-    def answer_logprobs(self, prompt: str, answers: list[str]) -> dict[str, float]:
+    def answer_logprobs(
+        self, prompt: str, answers: list[str], patches: list | None = None
+    ) -> dict[str, float]:
         """Log P(answer | prompt) summed over the answer's tokens.
 
         Answers are scored as continuations " {answer}" of the prompt.
+        `patches` (list of jspace.patching.hooks.ResidualPatch) are applied
+        during each scoring forward; they must target prompt-prefix positions.
         """
+        from jspace.patching.hooks import apply_patches
+
         scores: dict[str, float] = {}
         for ans in answers:
             prompt_ids = self.encode(prompt)
@@ -85,7 +91,8 @@ class ModelWrapper:
             n_prompt = prompt_ids.shape[1]
             if full_ids.shape[1] <= n_prompt:
                 raise ValueError(f"answer {ans!r} adds no tokens")
-            logits = self.hf(full_ids, use_cache=False).logits[0]
+            with apply_patches(self.lens_model.layers, patches or []):
+                logits = self.hf(full_ids, use_cache=False).logits[0]
             logprobs = torch.log_softmax(logits.float(), dim=-1)
             total = 0.0
             for pos in range(n_prompt, full_ids.shape[1]):
@@ -93,9 +100,11 @@ class ModelWrapper:
             scores[ans] = total
         return scores
 
-    def answer_distribution(self, prompt: str, answers: list[str]) -> np.ndarray:
+    def answer_distribution(
+        self, prompt: str, answers: list[str], patches: list | None = None
+    ) -> np.ndarray:
         """P(answer | prompt) normalized over the candidate set."""
-        lp = self.answer_logprobs(prompt, answers)
+        lp = self.answer_logprobs(prompt, answers, patches=patches)
         arr = np.array([lp[a] for a in answers], dtype=np.float64)
         arr -= arr.max()
         p = np.exp(arr)
