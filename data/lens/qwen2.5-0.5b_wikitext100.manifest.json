@@ -1,0 +1,9 @@
+{
+  "model": "Qwen/Qwen2.5-0.5B",
+  "corpus": "data/fit_corpus_wikitext120.json",
+  "n_prompts": 100,
+  "max_seq_len": 96,
+  "dim_batch": 16,
+  "jlens_commit": "581d398613e5602a5af361e1c34d3a92ea82ba8e",
+  "fit_seconds": 12974
+}

@@ -19,8 +19,10 @@ data/**
 !data/**/manifest.json
 !data/**/*.manifest.json
 !data/fit_corpus_*.json
+!data/lens/
 !data/lens/*.pt
 data/lens/*.ckpt
+data/lens/interim*.pt
 results/**
 !results/README.md
 !results/**/*.md
