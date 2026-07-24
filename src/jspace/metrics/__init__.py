@@ -1,25 +1,27 @@
-from jspace.metrics.jdist import (
-    cosine_distance,
-    js_divergence,
-    kl_divergence,
-    rank_biased_overlap,
-    softmax,
-    topk_overlap,
-)
 from jspace.metrics.behavior import (
     answer_match,
     cohens_h,
     output_distribution_divergence,
 )
+from jspace.metrics.jdist import (
+    cosine_distance,
+    js_divergence,
+    kl_divergence,
+    position_readout_distances,
+    rank_biased_overlap,
+    softmax,
+    topk_overlap,
+)
 
 __all__ = [
+    "answer_match",
+    "cohens_h",
     "cosine_distance",
-    "kl_divergence",
     "js_divergence",
-    "topk_overlap",
+    "kl_divergence",
+    "output_distribution_divergence",
+    "position_readout_distances",
     "rank_biased_overlap",
     "softmax",
-    "answer_match",
-    "output_distribution_divergence",
-    "cohens_h",
+    "topk_overlap",
 ]

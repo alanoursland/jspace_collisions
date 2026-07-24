@@ -2,9 +2,10 @@
 
 For every PromptPair in the benchmark and every requested layer:
 
-  1. Run both variants (statement only, no probe); take the residual at the
-     final statement token and compute lens readouts under the fitted J-lens
-     and each control lens (shuffled labels, random transport, logit lens).
+  1. Run both variants (statement only, no probe); compute lens readouts at
+     every statement position under the fitted J-lens and each control lens.
+     Preserve the legacy final-token metrics and, for equal-length pairs,
+     report aligned all-position metrics.
   2. Behavior: P(answer | statement + probe) over the pair's two expected
      answers, for both variants; behavior distance = JS divergence between
      the two variants' answer distributions, plus an answer-flip flag.
@@ -36,6 +37,7 @@ from jspace.lens.controls import RandomTransportLens, ShuffledLens
 from jspace.metrics import (
     cosine_distance,
     js_divergence,
+    position_readout_distances,
     softmax,
     topk_overlap,
 )
@@ -58,6 +60,12 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--model", default="Qwen/Qwen2.5-0.5B")
     ap.add_argument("--lens", required=True)
+    ap.add_argument("--device", default="auto")
+    ap.add_argument(
+        "--dtype",
+        choices=["auto", "float32", "float16", "bfloat16"],
+        default="auto",
+    )
     ap.add_argument("--layers", type=int, nargs="+", default=[6, 10, 14, 18, 22])
     ap.add_argument("--out", default="results/e02_collision_search/sweep_v1")
     ap.add_argument("--limit", type=int, default=None, help="cap pairs for smoke runs")
@@ -67,7 +75,7 @@ def main() -> None:
     out_dir = pathlib.Path(args.out)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    wrapper = ModelWrapper(args.model)
+    wrapper = ModelWrapper(args.model, device=args.device, dtype=args.dtype)
     jl = JLensAdapter.load(args.lens, wrapper)
     lenses = [
         jl,
@@ -128,11 +136,23 @@ def main() -> None:
             }
             pair_records = []
             for layer in layers:
-                ha = cap_a.activations[layer][-1].numpy()
-                hb = cap_b.activations[layer][-1].numpy()
+                ha = cap_a.activations[layer].numpy()
+                hb = cap_b.activations[layer].numpy()
                 for lens in lenses:
-                    jd = jdistances(
-                        lens.readout_logits(ha, layer), lens.readout_logits(hb, layer)
+                    la = lens.readout_logits(ha, layer)
+                    lb = lens.readout_logits(hb, layer)
+                    jd = jdistances(la[-1], lb[-1])
+                    position_jd = (
+                        position_readout_distances(la, lb, k=20)
+                        if la.shape[0] == lb.shape[0]
+                        else {
+                            "final_js": jd["js"],
+                            "mean_js": None,
+                            "scan_js": None,
+                            "bag_js": None,
+                            "mean_topk_overlap": None,
+                            "min_topk_overlap": None,
+                        }
                     )
                     pair_records.append(
                         {
@@ -141,9 +161,19 @@ def main() -> None:
                             "layer": layer,
                             "lens": lens.name,
                             **jd,
+                            **position_jd,
+                            "token_count_a": int(la.shape[0]),
+                            "token_count_b": int(lb.shape[0]),
                             **behavior,
                             "collision_score": collision_score(
                                 jd["js"], behavior["behavior_js"]
+                            ),
+                            "scan_collision_score": (
+                                collision_score(
+                                    position_jd["scan_js"], behavior["behavior_js"]
+                                )
+                                if position_jd["scan_js"] is not None
+                                else None
                             ),
                         }
                     )
@@ -158,7 +188,10 @@ def main() -> None:
     manifest = {
         "model": args.model,
         "lens": args.lens,
+        "device": str(wrapper.device),
+        "dtype": str(wrapper.dtype).removeprefix("torch."),
         "layers": layers,
+        "position_metrics": True,
         "n_pairs": len(pairs),
         "n_records": n_records,
         "seconds_this_run": round(time.time() - t0),

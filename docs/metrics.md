@@ -21,9 +21,17 @@ and be defined here. Program-level metric lists: `docs/research_program.md`,
 | JS divergence | `js_divergence(...)` | symmetric, bounded [0, ln 2]; default for sweeps |
 | Top-k overlap | `topk_overlap(L1, L2, k)` | Jaccard of top-k index sets; k=20 default |
 | Rank-biased overlap | `rbo_from_logits(L1, L2, k, p)` | truncated RBO, Webber et al. 2010; top-weighted; k=50, p=0.9 default |
+| Position-aware distances | `position_readout_distances(L_seq1, L_seq2, k)` | aligned positions; reports final/mean/max-scan JS, order-free bag JS, and mean/min top-k overlap |
 
 Defaults (k, p, temperature) are starting points; sensitivity to them is part
 of Phase 1 calibration and any change must be recorded here.
+
+For equal-length prompt pairs, `scan_js` is the strict monitoring distance:
+the maximum JS divergence at any aligned position. A low final-token distance
+is not an all-position collision when `scan_js` is high. `bag_js` averages
+the per-position distributions before comparison and therefore tests an
+order-free bag-of-readouts monitor; it must not be interpreted as preserving
+binding or position.
 
 ## Behavior distance — `jspace.metrics.behavior`
 

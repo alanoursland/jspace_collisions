@@ -34,7 +34,7 @@ class ShuffledLens:
         logits = self.base.readout_logits(activation, layer)
         if self._perm is None:
             self._perm = self._rng.permutation(logits.shape[-1])
-        return logits[self._perm]
+        return logits[..., self._perm]
 
 
 class RandomTransportLens:

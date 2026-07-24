@@ -26,5 +26,5 @@ class Lens(Protocol):
     def source_layers(self) -> list[int]: ...
 
     def readout_logits(self, activation: np.ndarray, layer: int) -> np.ndarray:
-        """Lens logits (vocab,) for one residual activation (d_model,)."""
+        """Lens logits ``(..., vocab)`` for activations ``(..., d_model)``."""
         ...

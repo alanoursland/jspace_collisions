@@ -4,7 +4,6 @@ import pytest
 from jspace.patching import PatchSpec
 from jspace.patching.harness import apply_patch_array
 
-
 H = np.array([1.0, 2.0, 3.0])
 V = np.array([1.0, 0.0, 0.0])
 

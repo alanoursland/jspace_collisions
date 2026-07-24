@@ -1,0 +1,28 @@
+{
+  "model": "Qwen/Qwen2.5-3B",
+  "model_path": ".cache\\models\\Qwen2.5-3B",
+  "model_revision": "3aab1f1954e9cc14eb9509a215f9e5ca08227a9b",
+  "corpus": "data/fit_corpus_wikitext120.json",
+  "n_prompts": 20,
+  "max_seq_len": 96,
+  "dim_batch": 8,
+  "source_layers": [
+    5,
+    10,
+    15,
+    20,
+    25,
+    30,
+    34
+  ],
+  "device": "cuda",
+  "dtype": "bfloat16",
+  "gpu": "NVIDIA GeForce RTX 3080 Ti",
+  "peak_cuda_allocated_gib": 8.408,
+  "jlens_commit": "581d398613e5602a5af361e1c34d3a92ea82ba8e",
+  "torch_version": "2.11.0+cu128",
+  "transformers_version": "5.14.1",
+  "resume_from_n_prompts": 1,
+  "fit_seconds_this_run": 530,
+  "fit_seconds_total": null
+}

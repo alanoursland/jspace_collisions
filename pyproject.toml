@@ -14,8 +14,8 @@ dev = [
     "ruff>=0.4",
 ]
 models = [
-    "torch>=2.2",
-    "transformers>=4.44",
+    "torch>=2.4",
+    "transformers>=5.5",
     "accelerate>=0.30",
     "safetensors>=0.4",
 ]

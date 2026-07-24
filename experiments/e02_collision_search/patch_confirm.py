@@ -28,10 +28,9 @@ import argparse
 import json
 import pathlib
 
+import jlens
 import numpy as np
 import torch
-
-import jlens
 
 from jspace.metrics import js_divergence
 from jspace.models.wrapper import ModelWrapper
@@ -40,7 +39,8 @@ from jspace.prompts import all_pairs
 
 
 def top_collision_pairs(sweep_dir: str, layer: int, top: int) -> list[str]:
-    recs = [json.loads(l) for l in open(pathlib.Path(sweep_dir) / "records.jsonl")]
+    with (pathlib.Path(sweep_dir) / "records.jsonl").open() as records_file:
+        recs = [json.loads(line) for line in records_file]
     cands = [
         r
         for r in recs
@@ -75,9 +75,21 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--model", default="Qwen/Qwen2.5-0.5B")
     ap.add_argument("--lens", required=True)
+    ap.add_argument("--device", default="auto")
+    ap.add_argument(
+        "--dtype",
+        choices=["auto", "float32", "float16", "bfloat16"],
+        default="auto",
+    )
     ap.add_argument("--sweep", default="results/e02_collision_search/sweep_final")
     ap.add_argument("--layer", type=int, default=16)
     ap.add_argument("--top", type=int, default=8)
+    ap.add_argument(
+        "--pairs",
+        nargs="+",
+        default=None,
+        help="explicit pair IDs; overrides --top selection from the sweep",
+    )
     ap.add_argument("--mass", type=float, default=0.90)
     ap.add_argument("--out", default="results/e02_collision_search/patch_confirm_v1")
     args = ap.parse_args()
@@ -85,15 +97,18 @@ def main() -> None:
     out_dir = pathlib.Path(args.out)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    wrapper = ModelWrapper(args.model)
+    wrapper = ModelWrapper(args.model, device=args.device, dtype=args.dtype)
     lens = jlens.JacobianLens.load(args.lens)
     P_vis, rank = lens_visible_projector(lens.jacobians[args.layer], args.mass)
     print(f"lens-visible subspace at L{args.layer}: rank {rank}/{wrapper.d_model} "
           f"({args.mass:.0%} sq-singular mass)")
     P_vis_t = torch.from_numpy(P_vis.astype(np.float32))
 
-    pair_ids = top_collision_pairs(args.sweep, args.layer, args.top)
     pairs = {p.pair_id: p for p in all_pairs()}
+    pair_ids = args.pairs or top_collision_pairs(args.sweep, args.layer, args.top)
+    unknown = set(pair_ids) - set(pairs)
+    if unknown:
+        raise ValueError(f"unknown pair IDs: {sorted(unknown)}")
     L = args.layer
 
     records = []
@@ -111,7 +126,12 @@ def main() -> None:
         }
         stmt_positions = list(range(n_a))
 
-        def patches_for(direction: str, condition: str) -> list[ResidualPatch]:
+        def patches_for(
+            direction: str,
+            condition: str,
+            cap=cap,
+            stmt_positions=stmt_positions,
+        ) -> list[ResidualPatch]:
             src, dst = ("a", "b") if direction == "a->b" else ("b", "a")
             h_src = cap[src].activations[L]
             h_dst = cap[dst].activations[L]
@@ -139,7 +159,13 @@ def main() -> None:
             src_dist = wrapper.answer_distribution(
                 pair.full_a() if dst == "b" else pair.full_b(), answers
             )
-            for condition in ("none", "full_last", "full_stmt", "jvis_stmt", "fiber_stmt"):
+            for condition in (
+                "none",
+                "full_last",
+                "full_stmt",
+                "jvis_stmt",
+                "fiber_stmt",
+            ):
                 dist = wrapper.answer_distribution(
                     dst_prompt, answers, patches=patches_for(direction, condition)
                 )
@@ -163,7 +189,10 @@ def main() -> None:
     lines = ["# Patch confirmation summary", "",
              f"layer L{L}, lens-visible rank {rank}/{wrapper.d_model} at {args.mass:.0%} mass",
              "",
-             "transfer = 1 - JS(patched dist, source-variant dist)/JS(baseline dist, source-variant dist)",
+             (
+                 "transfer = 1 - JS(patched dist, source-variant dist)"
+                 "/JS(baseline dist, source-variant dist)"
+             ),
              "(1.0 = behavior fully follows the patch; 0.0 = no effect)", ""]
     lines.append("| condition | mean transfer | flips to source answer |")
     lines.append("|---|---|---|")
@@ -177,12 +206,15 @@ def main() -> None:
     for condition in ("full_last", "full_stmt", "jvis_stmt", "fiber_stmt"):
         rs = [r for r in records if r["condition"] == condition]
         transfers = [
-            1 - r["js_to_source_behavior"] / max(base[(r["pair_id"], r["direction"])], 1e-9)
+            1
+            - r["js_to_source_behavior"]
+            / max(base[(r["pair_id"], r["direction"])], 1e-9)
             for r in rs
         ]
         flips = [r["answer"] == src_answer[(r["pair_id"], r["direction"])] for r in rs]
         lines.append(
-            f"| {condition} | {np.mean(transfers):.2f} | {np.mean(flips):.0%} ({sum(flips)}/{len(flips)}) |"
+            f"| {condition} | {np.mean(transfers):.2f} | "
+            f"{np.mean(flips):.0%} ({sum(flips)}/{len(flips)}) |"
         )
     report = "\n".join(lines) + "\n"
     (out_dir / "summary.md").write_text(report)

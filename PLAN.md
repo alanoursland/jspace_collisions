@@ -61,9 +61,13 @@ Status 2026-07-22: substantially COMPLETE on CPU at 0.5B scale.
 - E2 full sweep run twice (interim + final lens): stable role-reversal
   collisions found at L12-16 (J-dist ~0.001-0.02, top-20 Jaccard up to
   0.9, behavior JS >0.5 with confident correct-but-opposite answers).
-- Remaining for Phase 1/2 exit: paraphrase/seed stability, readout
-  position sweep, patch-confirmation of collisions (the crux), larger
-  model (GPU).
+- Patch confirmation completed: the strongest final-token collision site was
+  causally inert, while swapping all statement positions transferred behavior
+  completely. The strong hidden-fiber claim is not established at 0.5B.
+- A position-aware regression check now makes the distinction explicit:
+  `role_025` at L16 has final-token JS 0.00275 but max-position scan JS 0.64783.
+- Remaining for Phase 1/2 exit: paraphrase/seed stability, causally gated
+  position-aware collision search, and the matched larger-model GPU series.
 
 1. Integrate the reference implementation behind `jspace.lens.JLens`
    (adapter conforming to `lens/interface.py`).
@@ -148,15 +152,17 @@ this study is publishable even if the rest of the program shifts.
 
 ## Immediate next actions
 
-1. Resolve access to `anthropics/jacobian-lens` and pin a version; write the
-   `JLens` adapter against the real API (interfaces in `lens/interface.py` are
-   currently written from the paper's description and must be reconciled).
-2. Pick the primary small model (default: smallest Qwen model the reference
-   implementation supports) and verify weights download in the target compute
-   environment.
-3. Grow prompt banks from starter size (~10/category) toward 100/category,
-   each pair with a behavioral probe and scoring rule.
-4. Decide GPU environment for Phase 1 lens fitting.
+1. Complete the one-prompt Qwen2.5-1.5B GPU benchmark and select a safe
+   `dim_batch` from measured VRAM and runtime.
+2. Fit matched Qwen2.5 base-model lenses at 0.5B, 1.5B, and (if the pilot
+   permits) 3B, using convergence snapshots rather than assuming 100 prompts
+   are necessary at every size.
+3. Run E1 plus the category competence gate on each size.
+4. Run the position-aware E2 search; causally patch only candidates that remain
+   close under the all-position scan metric.
+5. Add the base-vs-instruct axis after the size series is calibrated.
+
+Detailed gates and artifact conventions: `docs/gpu_campaign.md`.
 
 ## Risk register
 

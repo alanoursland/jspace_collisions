@@ -70,7 +70,40 @@ def main() -> None:
             f"{fmt(r['top20_jaccard'])} | {fmt(r['behavior_js'])} | {r['answer_flip']} |"
         )
 
-    # 4. Category x layer collision summary: mean J-distance among
+    # 4. Position-aware audit. A low final-token distance is not a global
+    #    collision when some aligned statement position is easy to distinguish.
+    if any("scan_js" in r for r in jrecs):
+        aligned = [r for r in jrecs if r.get("scan_js") is not None]
+        eligible = [
+            r
+            for r in aligned
+            if r["answer_flip"] and r["correct_a"] and r["correct_b"]
+        ]
+        legacy = [
+            r for r in eligible if r["js"] < 0.02 and r["behavior_js"] > 0.5
+        ]
+        strict = [
+            r for r in eligible if r["scan_js"] < 0.02 and r["behavior_js"] > 0.5
+        ]
+        lines += ["", "## Position-aware collision audit", ""]
+        lines.append(
+            f"Both-correct answer flips: {len(eligible)}. "
+            f"Legacy final-JS collisions: {len(legacy)}. "
+            f"All-position scan-JS collisions: {len(strict)}."
+        )
+        lines += [
+            "",
+            "| pair | layer | final JS | scan JS | bag JS | min top20 | behavior JS |",
+            "|---|---|---|---|---|---|---|",
+        ]
+        for r in sorted(eligible, key=lambda x: -x["scan_collision_score"])[:20]:
+            lines.append(
+                f"| {r['pair_id']} | {r['layer']} | {fmt(r['js'])} | "
+                f"{fmt(r['scan_js'])} | {fmt(r['bag_js'])} | "
+                f"{fmt(r['min_topk_overlap'])} | {fmt(r['behavior_js'])} |"
+            )
+
+    # 5. Category x layer collision summary: mean J-distance among
     #    behaviorally-divergent pairs (the H2 signal)
     lines += ["", "## Mean J-dist (JS) for pairs with behavior JS > 0.1 (jlens)", ""]
     lines.append("| category | " + " | ".join(f"L{l}" for l in layers) + " |")

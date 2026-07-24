@@ -5,6 +5,7 @@ from jspace.metrics import (
     cosine_distance,
     js_divergence,
     kl_divergence,
+    position_readout_distances,
     rank_biased_overlap,
     softmax,
     topk_overlap,
@@ -47,6 +48,32 @@ def test_topk_overlap():
     # top-3 sets: {0,1,2} vs {1,2,3} -> jaccard 2/4
     assert topk_overlap(a, b, k=3) == pytest.approx(0.5)
     assert topk_overlap(a, a, k=3) == pytest.approx(1.0)
+
+
+def test_position_readout_distances_identical():
+    logits = np.array([[5.0, 1.0, 0.0], [0.0, 2.0, 4.0]])
+    distances = position_readout_distances(logits, logits, k=2)
+    assert distances["final_js"] == pytest.approx(0.0)
+    assert distances["mean_js"] == pytest.approx(0.0)
+    assert distances["scan_js"] == pytest.approx(0.0)
+    assert distances["bag_js"] == pytest.approx(0.0)
+    assert distances["mean_topk_overlap"] == pytest.approx(1.0)
+    assert distances["min_topk_overlap"] == pytest.approx(1.0)
+
+
+def test_position_readout_distances_detects_one_visible_site():
+    a = np.array([[8.0, 0.0, 0.0], [0.0, 8.0, 0.0]])
+    b = np.array([[0.0, 0.0, 8.0], [0.0, 8.0, 0.0]])
+    distances = position_readout_distances(a, b, k=1)
+    assert distances["final_js"] == pytest.approx(0.0)
+    assert distances["scan_js"] > distances["mean_js"] > 0.0
+    assert distances["min_topk_overlap"] == pytest.approx(0.0)
+    assert distances["mean_topk_overlap"] == pytest.approx(0.5)
+
+
+def test_position_readout_distances_rejects_unaligned_shapes():
+    with pytest.raises(ValueError, match="shapes differ"):
+        position_readout_distances(np.zeros((2, 3)), np.zeros((3, 3)))
 
 
 def test_rbo_identical_and_disjoint():

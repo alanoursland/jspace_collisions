@@ -12,7 +12,6 @@ from __future__ import annotations
 import sys
 
 import torch
-
 from jlens import JacobianLens
 
 

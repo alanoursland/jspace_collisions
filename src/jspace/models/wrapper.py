@@ -12,13 +12,40 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+import jlens
 import numpy as np
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-import jlens
-
 DEFAULT_MODEL = "Qwen/Qwen2.5-0.5B"
+
+
+def resolve_device(device: str) -> torch.device:
+    """Resolve ``auto`` to CUDA when available, otherwise CPU."""
+    if device == "auto":
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+    resolved = torch.device(device)
+    if resolved.type == "cuda" and not torch.cuda.is_available():
+        raise RuntimeError("CUDA was requested but torch.cuda.is_available() is false")
+    return resolved
+
+
+def resolve_dtype(dtype: str, device: torch.device) -> torch.dtype:
+    """Resolve a CLI-friendly dtype name for model loading."""
+    if dtype == "auto":
+        if device.type == "cuda":
+            return torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
+        return torch.float32
+    try:
+        return {
+            "float32": torch.float32,
+            "float16": torch.float16,
+            "bfloat16": torch.bfloat16,
+        }[dtype]
+    except KeyError as exc:
+        raise ValueError(
+            f"unsupported dtype {dtype!r}; choose auto, float32, float16, or bfloat16"
+        ) from exc
 
 
 @dataclass
@@ -35,12 +62,18 @@ class CaptureResult:
 
 
 class ModelWrapper:
-    def __init__(self, model_name: str = DEFAULT_MODEL, device: str = "cpu"):
+    def __init__(
+        self,
+        model_name: str = DEFAULT_MODEL,
+        device: str = "auto",
+        dtype: str = "auto",
+    ):
         self.model_name = model_name
-        self.device = device
+        self.device = resolve_device(device)
+        self.dtype = resolve_dtype(dtype, self.device)
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-        hf = AutoModelForCausalLM.from_pretrained(model_name, dtype=torch.float32)
-        hf.to(device)
+        hf = AutoModelForCausalLM.from_pretrained(model_name, dtype=self.dtype)
+        hf.to(self.device)
         hf.eval()
         self.hf = hf
         self.lens_model = jlens.from_hf(hf, self.tokenizer)
@@ -63,11 +96,15 @@ class ModelWrapper:
         # same activations lens_model.forward would, plus gives us logits.
         with jlens.ActivationRecorder(self.lens_model.layers, at=layers) as rec:
             out = self.hf(ids, use_cache=False)
-            activations = {l: rec.activations[l][0].detach() for l in layers}
+            # Keep captured datasets and lens operations device-agnostic. Patch
+            # hooks move supplied vectors back to the model device as needed.
+            activations = {
+                l: rec.activations[l][0].detach().float().cpu() for l in layers
+            }
         return CaptureResult(
             tokens=self.tokenizer.convert_ids_to_tokens(ids[0]),
             activations=activations,
-            logits=out.logits[0].float(),
+            logits=out.logits[0].detach().float().cpu(),
         )
 
     # -- behavior probing ---------------------------------------------------

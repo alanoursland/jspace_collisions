@@ -22,13 +22,14 @@ import json
 import pathlib
 import time
 
+import jlens
 import numpy as np
 
 from jspace.lens.adapter import JLensAdapter, LogitLensBaseline
 from jspace.lens.controls import RandomTransportLens, ShuffledLens
 from jspace.models.wrapper import ModelWrapper
 
-EVAL_DIR = pathlib.Path("/workspace/jacobian-lens/data/evaluations")
+EVAL_DIR = pathlib.Path(jlens.__file__).resolve().parents[1] / "data" / "evaluations"
 
 
 def intermediate_token_ids(wrapper: ModelWrapper, word: str) -> list[int]:
@@ -57,6 +58,13 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--model", default="Qwen/Qwen2.5-0.5B")
     ap.add_argument("--lens", required=True)
+    ap.add_argument("--device", default="auto")
+    ap.add_argument(
+        "--dtype",
+        choices=["auto", "float32", "float16", "bfloat16"],
+        default="auto",
+    )
+    ap.add_argument("--eval-dir", type=pathlib.Path, default=EVAL_DIR)
     ap.add_argument("--evals", nargs="+", default=["multihop", "association"])
     ap.add_argument("--layers", type=int, nargs="+", default=None,
                     help="workspace band; default = all fitted layers")
@@ -68,7 +76,7 @@ def main() -> None:
     out_dir = pathlib.Path(args.out)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    wrapper = ModelWrapper(args.model)
+    wrapper = ModelWrapper(args.model, device=args.device, dtype=args.dtype)
     jl = JLensAdapter.load(args.lens, wrapper)
     layers = args.layers or jl.source_layers
     lenses = [
@@ -81,7 +89,9 @@ def main() -> None:
     records = []
     t0 = time.time()
     for eval_name in args.evals:
-        items = json.loads((EVAL_DIR / f"lens-eval-{eval_name}.json").read_text())["items"]
+        items = json.loads(
+            (args.eval_dir / f"lens-eval-{eval_name}.json").read_text()
+        )["items"]
         if args.limit:
             items = items[: args.limit]
         for item in items:
@@ -111,8 +121,13 @@ def main() -> None:
         for r in records:
             f.write(json.dumps(r) + "\n")
 
-    lines = ["# E1 lens-quality evals", "",
-             f"model: {args.model} | lens: {args.lens} | layers: {layers}", ""]
+    lines = [
+        "# E1 lens-quality evals",
+        "",
+        f"model: {args.model} | lens: {args.lens} | layers: {layers}",
+        f"device: {wrapper.device} | dtype: {wrapper.dtype}",
+        "",
+    ]
     lines.append("| eval | lens | " + " | ".join(f"pass@{k}" for k in args.ks) + " | n |")
     lines.append("|---" * (len(args.ks) + 3) + "|")
     for eval_name in args.evals:

@@ -52,9 +52,13 @@ for anything beyond ~1B-parameter smoke tests, a GPU.
 - Technical paper: https://transformer-circuits.pub/2026/workspace/index.html
 - Reference implementation: https://github.com/anthropics/jacobian-lens
 
-The reference implementation is not yet vendored or pinned here; integrating
-it is the first task of experiment family 1 (see `experiments/e01_replication`).
+The reference implementation is pinned at commit
+`581d398613e5602a5af361e1c34d3a92ea82ba8e`; this project imports it as the
+separate editable `jlens` package rather than vendoring it.
 
 ## Status
 
-Workspace scaffolding phase. See `PLAN.md` for what is done and what is next.
+The 0.5B CPU phase is complete: the core readout result replicated, apparent
+final-token collisions were found, and causal patching showed that the
+strongest collision site was behaviorally inert. GPU model-scaling work is now
+in progress; see `docs/gpu_campaign.md` and `PLAN.md`.

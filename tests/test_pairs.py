@@ -1,6 +1,5 @@
 from jspace.prompts import all_pairs, pairs_by_category
 
-
 EXPECTED_CATEGORIES = {
     "role_reversal",
     "relation_binding",

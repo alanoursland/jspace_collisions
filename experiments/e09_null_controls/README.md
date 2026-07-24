@@ -1,6 +1,6 @@
 # Null and Shuffled Controls
 
-Program family: E9 | Plan: All phases | Status: not started
+Program family: E9 | Plan: All phases | Status: shuffled/random/logit controls implemented; broader suite pending
 
 Calibration suite guarding against over-interpretation: shuffled token
 labels, shuffled positions, random orthogonal transports, mismatched

@@ -6,10 +6,9 @@ Requires the [models] extra plus the jlens package
 
 from __future__ import annotations
 
+import jlens
 import numpy as np
 import torch
-
-import jlens
 
 from jspace.models.wrapper import ModelWrapper
 
@@ -17,13 +16,13 @@ from jspace.models.wrapper import ModelWrapper
 class JLensAdapter:
     """Readout via a fitted jlens.JacobianLens: unembed(J_l @ h)."""
 
-    def __init__(self, lens: "jlens.JacobianLens", wrapper: ModelWrapper, name: str = "jlens"):
+    def __init__(self, lens: jlens.JacobianLens, wrapper: ModelWrapper, name: str = "jlens"):
         self.lens = lens
         self.wrapper = wrapper
         self.name = name
 
     @classmethod
-    def load(cls, path: str, wrapper: ModelWrapper) -> "JLensAdapter":
+    def load(cls, path: str, wrapper: ModelWrapper) -> JLensAdapter:
         return cls(jlens.JacobianLens.load(path), wrapper)
 
     @property

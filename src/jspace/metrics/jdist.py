@@ -9,7 +9,9 @@ J-distance over either full lens-logit vectors or top-k token rankings:
     - rank-biased overlap of top-k token rankings
 
 All functions are pure NumPy so they can be developed and tested without any
-model dependency. Lens logits are 1-D arrays over the vocabulary.
+model dependency. The base metrics take 1-D arrays over the vocabulary;
+``position_readout_distances`` compares aligned 2-D ``(position, vocabulary)``
+readouts.
 """
 
 from __future__ import annotations
@@ -67,6 +69,45 @@ def topk_overlap(a: np.ndarray, b: np.ndarray, k: int = 20) -> float:
     sa = set(topk_indices(a, k).tolist())
     sb = set(topk_indices(b, k).tolist())
     return len(sa & sb) / len(sa | sb)
+
+
+def position_readout_distances(
+    logits_a: np.ndarray,
+    logits_b: np.ndarray,
+    k: int = 20,
+) -> dict[str, float]:
+    """Compare aligned per-position lens readouts.
+
+    ``scan_js`` is the strict monitor metric: the largest JS divergence at any
+    aligned position. A pair only has a small scan distance when no position
+    visibly separates it. ``bag_js`` compares the mean per-position
+    probability distributions and intentionally discards order.
+    """
+    a = np.asarray(logits_a)
+    b = np.asarray(logits_b)
+    if a.ndim != 2 or b.ndim != 2:
+        raise ValueError("position readouts must have shape (positions, vocabulary)")
+    if a.shape != b.shape:
+        raise ValueError(f"position readout shapes differ: {a.shape} vs {b.shape}")
+    if a.shape[0] == 0:
+        raise ValueError("position readouts must contain at least one position")
+
+    probs_a = np.stack([softmax(row) for row in a])
+    probs_b = np.stack([softmax(row) for row in b])
+    per_position_js = np.array(
+        [js_divergence(pa, pb) for pa, pb in zip(probs_a, probs_b, strict=True)]
+    )
+    per_position_overlap = np.array(
+        [topk_overlap(la, lb, k=k) for la, lb in zip(a, b, strict=True)]
+    )
+    return {
+        "final_js": float(per_position_js[-1]),
+        "mean_js": float(per_position_js.mean()),
+        "scan_js": float(per_position_js.max()),
+        "bag_js": js_divergence(probs_a.mean(axis=0), probs_b.mean(axis=0)),
+        "mean_topk_overlap": float(per_position_overlap.mean()),
+        "min_topk_overlap": float(per_position_overlap.min()),
+    }
 
 
 def rank_biased_overlap(

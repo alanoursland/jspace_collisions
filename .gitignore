@@ -38,3 +38,9 @@ results/**
 # Environment
 .env
 .envrc
+
+# Large Models
+*.pt
+*.pth
+checkpoints/
+artifacts/
