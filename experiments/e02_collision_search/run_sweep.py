@@ -3,7 +3,8 @@
 For every PromptPair in the benchmark and every requested layer:
 
   1. Run both variants (statement only, no probe); compute lens readouts at
-     every statement position under the fitted J-lens and each control lens.
+     every statement position under the fitted J-lens and each applicable
+     distance-control lens.
      Preserve the legacy final-token metrics and, for equal-length pairs,
      report aligned all-position metrics.
   2. Behavior: P(answer | statement + probe) over the pair's two expected
@@ -33,7 +34,7 @@ import time
 import numpy as np
 
 from jspace.lens.adapter import JLensAdapter, LogitLensBaseline
-from jspace.lens.controls import RandomTransportLens, ShuffledLens
+from jspace.lens.controls import RandomTransportLens
 from jspace.metrics import (
     cosine_distance,
     js_divergence,
@@ -79,7 +80,6 @@ def main() -> None:
     jl = JLensAdapter.load(args.lens, wrapper)
     lenses = [
         jl,
-        ShuffledLens(jl, seed=args.seed),
         RandomTransportLens(jl, wrapper, seed=args.seed),
         LogitLensBaseline(wrapper, layers=jl.source_layers),
     ]

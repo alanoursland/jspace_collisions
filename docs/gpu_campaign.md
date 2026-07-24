@@ -1,6 +1,6 @@
 # GPU Campaign: Model-Scale Tests
 
-Status: infrastructure validation in progress (2026-07-23).
+Status: first 0.5B/1.5B/3B size-series pass complete (2026-07-23).
 
 ## Hardware
 
@@ -31,20 +31,25 @@ estimator correctly.
 ## Stage 0: runtime validation
 
 - [x] Pin the Anthropic reference implementation at commit `581d398`.
-- [x] Pass the 19 local unit tests and 32 reference tests.
+- [x] Pass the 22 local unit tests and 32 reference tests.
 - [x] Load Qwen2.5-0.5B on CUDA and run an end-to-end E1 smoke item.
-- [ ] Benchmark one 1.5B prompt at four representative source layers.
-- [ ] Benchmark one 3B prompt only if the 1.5B memory/timing result is sound.
+- [x] Benchmark 1.5B precision, layer-grid, and `dim_batch` choices.
+- [x] Benchmark 3B at `dim_batch` 2, 4, and 8.
 
-Pilot settings:
+Selected production settings:
 
-- BF16 model weights and activations
-- sequence length 48
-- `dim_batch=2` initially
-- source layers spread through the workspace band
-- one fitting prompt
+- 1.5B: FP32 production/convergence series plus a matched BF16 control,
+  sequence length 96, `dim_batch=8`, layers `[4, 8, 12, 16, 20, 24, 26]`
+- 3B: BF16, sequence length 96, `dim_batch=8`, layers
+  `[5, 10, 15, 20, 25, 30, 34]`
+- 3B pilot: 28 seconds/prompt and 8.405 GiB peak CUDA allocation
+- 3B 100-prompt cumulative fit: 2,776 seconds
 
-The pilot measures peak VRAM and time per prompt. It is not a research lens.
+BF16 pilot transports varied with `dim_batch` by up to about 4% at early
+layers and under 1% near the top. All 3B production artifacts therefore use
+one fixed batch setting. The completed 100-prompt 1.5B BF16 control differs
+from its FP32 transport by only 0.94% at L4 and 0.40% at L20, falling to about
+0.3% near the top.
 
 ## Stage 1: matched size-series lenses
 
@@ -60,6 +65,15 @@ For each feasible model:
 Use normalized layer locations when comparing models with different depths.
 Do not compare raw layer numbers as though they represented the same stage of
 computation.
+
+Completed artifacts:
+
+- 1.5B FP32 lenses at 20, 50, and 100 prompts
+- 1.5B BF16 precision-control lens at 100 prompts
+- 3B BF16 lenses at 20, 50, and 100 prompts
+- E1 evaluations for both sizes
+- position-aware E2 sweeps at the matched mid/late layers
+- an exploratory seven-layer E2 sweep for the 100-prompt 3B lens
 
 ## Stage 2: competence gate
 
@@ -110,4 +124,3 @@ For patch-confirmed candidates:
   shows that the fitted readout agrees with an unquantized checkpoint.
 - Do not treat 7B CPU-offloaded inference as evidence that 7B Jacobian fitting
   is supported; retained-gradient execution must be validated separately.
-

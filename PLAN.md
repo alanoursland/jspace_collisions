@@ -20,12 +20,12 @@ repository artifacts, and records current status.
 
 ## Compute posture
 
-This development container is CPU-only. It supports: all pure-Python library
-work, prompt benchmark construction, metric development, and smoke tests with
-sub-1B open models (e.g. Qwen2.5-0.5B) if network policy permits HuggingFace
-downloads. Lens fitting and the main experiment battery need a GPU box; the
-repo is structured so experiments are launchable scripts that run identically
-there.
+The local workstation has an RTX 3080 Ti (12 GiB VRAM) and 96 GiB CPU RAM.
+The 0.5B CPU artifacts remain the historical baseline; matched 1.5B and 3B
+lenses now run locally on CUDA. A seven-layer, sequence-length-96 3B BF16 fit
+uses about 8.4 GiB and 28 seconds per prompt at `dim_batch=8`. Ordinary 7B
+retained-gradient fitting is still outside this VRAM budget without a
+validated offload or recomputation method.
 
 ## Phase 0 — Workspace setup (now)
 
@@ -152,15 +152,16 @@ this study is publishable even if the rest of the program shifts.
 
 ## Immediate next actions
 
-1. Complete the one-prompt Qwen2.5-1.5B GPU benchmark and select a safe
-   `dim_batch` from measured VRAM and runtime.
-2. Fit matched Qwen2.5 base-model lenses at 0.5B, 1.5B, and (if the pilot
-   permits) 3B, using convergence snapshots rather than assuming 100 prompts
-   are necessary at every size.
-3. Run E1 plus the category competence gate on each size.
-4. Run the position-aware E2 search; causally patch only candidates that remain
-   close under the all-position scan metric.
-5. Add the base-vs-instruct axis after the size series is calibrated.
+1. Add a Qwen2.5-3B-Instruct competence/readout axis; the 3B base model is weak
+   on the current role/binding answer format despite stronger multihop E1
+   readout.
+2. Expand paraphrase/seed coverage around the 1.5B `role_130` near-collision.
+3. Replace binary collision counts with continuous scan-distance versus
+   behavior-distance curves calibrated against controls.
+4. Causally patch only candidates that remain unusually close under the
+   all-position scan metric.
+5. Evaluate whether activation or gradient checkpointing can extend the same
+   estimator beyond 3B without changing its mathematical target.
 
 Detailed gates and artifact conventions: `docs/gpu_campaign.md`.
 
@@ -172,8 +173,8 @@ Detailed gates and artifact conventions: `docs/gpu_campaign.md`.
 - Reference implementation may not be public/accessible → fallback: implement
   the lens from the technical paper (Jacobian of future-token logits w.r.t.
   residual state, averaged over a fitting corpus); budget +2 weeks.
-- No GPU in this container → experiments are scripts, not notebooks; run them
-  on a GPU box unchanged. Smoke-test path on CPU with a 0.5B model.
+- Limited GPU memory means 3B requires BF16 and 7B is not yet validated →
+  precision pilots and fixed-batch manifests are required for every size.
 - Apparent collisions may be lens noise → E9 controls run alongside every
   phase; a collision claim requires beating its shuffled-lens baseline.
 - Safety-relevant prompts (E10) must stay benign → all latent-state elicitation

@@ -76,6 +76,22 @@ def test_position_readout_distances_rejects_unaligned_shapes():
         position_readout_distances(np.zeros((2, 3)), np.zeros((3, 3)))
 
 
+def test_shared_vocab_permutation_is_not_a_distance_control():
+    a = np.array([5.0, 1.0, 3.0, -2.0, 0.0])
+    b = np.array([0.0, 4.0, 2.0, -1.0, 3.0])
+    permutation = np.array([2, 4, 0, 3, 1])
+
+    assert cosine_distance(a, b) == pytest.approx(
+        cosine_distance(a[permutation], b[permutation])
+    )
+    assert js_divergence(softmax(a), softmax(b)) == pytest.approx(
+        js_divergence(softmax(a[permutation]), softmax(b[permutation]))
+    )
+    assert topk_overlap(a, b, k=3) == pytest.approx(
+        topk_overlap(a[permutation], b[permutation], k=3)
+    )
+
+
 def test_rbo_identical_and_disjoint():
     assert rank_biased_overlap([1, 2, 3], [1, 2, 3], p=0.9) == pytest.approx(
         (1 - 0.9) * (1 + 0.9 + 0.9**2)

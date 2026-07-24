@@ -26,6 +26,7 @@ def main() -> None:
     out_dir = sys.argv[1]
     records = load(out_dir)
     lenses = sorted({r["lens"] for r in records})
+    distance_lenses = [lens for lens in lenses if not lens.startswith("shuffled(")]
     layers = sorted({r["layer"] for r in records})
     jlens_name = next(l for l in lenses if l == "jlens")
 
@@ -35,12 +36,21 @@ def main() -> None:
     lines += ["## Mean same-pair J-distance (JS) by lens and layer", ""]
     lines.append("| lens | " + " | ".join(f"L{l}" for l in layers) + " |")
     lines.append("|---" * (len(layers) + 1) + "|")
-    for lens in lenses:
+    for lens in distance_lenses:
         row = [lens]
         for layer in layers:
             vals = [r["js"] for r in records if r["lens"] == lens and r["layer"] == layer]
             row.append(fmt(float(np.mean(vals))))
         lines.append("| " + " | ".join(row) + " |")
+    if len(distance_lenses) != len(lenses):
+        lines += [
+            "",
+            (
+                "Shared vocabulary-permutation controls are omitted: JS, cosine, "
+                "and overlap distances are permutation-invariant. Shuffling is a "
+                "token-identity control for E1, not a pairwise-distance control."
+            ),
+        ]
 
     # 2. Task competence: does the 0.5B model even do the tasks?
     lines += ["", "## Behavior probe competence by category", ""]
@@ -86,8 +96,10 @@ def main() -> None:
             r for r in eligible if r["scan_js"] < 0.02 and r["behavior_js"] > 0.5
         ]
         lines += ["", "## Position-aware collision audit", ""]
+        eligible_pairs = {r["pair_id"] for r in eligible}
         lines.append(
-            f"Both-correct answer flips: {len(eligible)}. "
+            f"Both-correct answer flips: {len(eligible_pairs)} unique pairs "
+            f"({len(eligible)} pair-layer records). "
             f"Legacy final-JS collisions: {len(legacy)}. "
             f"All-position scan-JS collisions: {len(strict)}."
         )

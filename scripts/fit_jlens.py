@@ -9,6 +9,7 @@ Qwen2.5-0.5B over ~100 wikitext prompts takes hours; run in the background.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import pathlib
@@ -19,6 +20,14 @@ import torch
 import transformers
 
 from jspace.models.wrapper import resolve_device, resolve_dtype
+
+
+def sha256_file(path: pathlib.Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as artifact:
+        for chunk in iter(lambda: artifact.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def main() -> None:
@@ -120,6 +129,7 @@ def main() -> None:
             else None
         ),
         "jlens_commit": "581d398613e5602a5af361e1c34d3a92ea82ba8e",
+        "lens_sha256": sha256_file(out),
         "torch_version": torch.__version__,
         "transformers_version": transformers.__version__,
         "resume_from_n_prompts": resume_from_n_prompts,

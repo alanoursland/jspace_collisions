@@ -3,7 +3,7 @@
   "model_path": ".cache\\models\\Qwen2.5-3B",
   "model_revision": "3aab1f1954e9cc14eb9509a215f9e5ca08227a9b",
   "corpus": "data/fit_corpus_wikitext120.json",
-  "n_prompts": 20,
+  "n_prompts": 100,
   "max_seq_len": 96,
   "dim_batch": 8,
   "source_layers": [
@@ -20,10 +20,10 @@
   "gpu": "NVIDIA GeForce RTX 3080 Ti",
   "peak_cuda_allocated_gib": 8.408,
   "jlens_commit": "581d398613e5602a5af361e1c34d3a92ea82ba8e",
-  "lens_sha256": "95398f951923c993a039b154b660dea5108c6fc73cbff7132a2de92172fcf63a",
+  "lens_sha256": "0b35f0a35749464d5373bc4cf1a95b7b5500ed3cf074fafbf757f661617cf242",
   "torch_version": "2.11.0+cu128",
   "transformers_version": "5.14.1",
-  "resume_from_n_prompts": 1,
-  "fit_seconds_this_run": 530,
-  "fit_seconds_total": 558
+  "resume_from_n_prompts": 50,
+  "fit_seconds_this_run": 1380,
+  "fit_seconds_total": 2776
 }

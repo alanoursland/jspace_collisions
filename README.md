@@ -58,7 +58,9 @@ separate editable `jlens` package rather than vendoring it.
 
 ## Status
 
-The 0.5B CPU phase is complete: the core readout result replicated, apparent
-final-token collisions were found, and causal patching showed that the
-strongest collision site was behaviorally inert. GPU model-scaling work is now
-in progress; see `docs/gpu_campaign.md` and `PLAN.md`.
+The 0.5B CPU phase and first 1.5B/3B GPU size-series pass are complete. The
+core readout result replicated, but the strongest 0.5B final-token collision
+was behaviorally inert. At 1.5B a stable causal near-collision appeared, while
+the 100-prompt 3B sweep found no tight all-position collision across seven
+sampled layers. See `docs/gpu_campaign.md`, `PLAN.md`, and the dated lab
+notebook for calibrated results and remaining precision controls.

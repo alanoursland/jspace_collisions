@@ -15,4 +15,9 @@ patch confirmation showed that the colliding final site was causally inert.
 The sweep now records aligned all-position metrics; a causal collision claim
 must remain close under that scan and transfer behavior when patched.
 
+Distance calibration uses the random-transport and logit-lens controls. A
+shared shuffled-vocabulary lens is intentionally excluded because pairwise
+JS, cosine, and overlap distances are invariant to a common label
+permutation; that control remains appropriate for E1 token-identity claims.
+
 See `docs/research_program.md` for the full procedure.

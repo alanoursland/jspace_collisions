@@ -20,9 +20,10 @@
   "gpu": "NVIDIA GeForce RTX 3080 Ti",
   "peak_cuda_allocated_gib": 8.408,
   "jlens_commit": "581d398613e5602a5af361e1c34d3a92ea82ba8e",
+  "lens_sha256": "23ac6a961fbe3375f17944fa85d824001f6cb3089c1f4e1584173d486c0fb60d",
   "torch_version": "2.11.0+cu128",
   "transformers_version": "5.14.1",
   "resume_from_n_prompts": 20,
   "fit_seconds_this_run": 838,
-  "fit_seconds_total": null
+  "fit_seconds_total": 1396
 }

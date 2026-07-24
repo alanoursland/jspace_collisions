@@ -45,13 +45,12 @@ the installed `jlens` package.
 
 Validation:
 
-- local tests: 19 passed
+- local tests: 22 passed
 - Anthropic reference tests: 32 passed
 - CUDA runtime: PyTorch 2.11.0, CUDA 12.8
 - Qwen2.5-0.5B E1 smoke: completed on GPU
 
-Next: benchmark a one-prompt Qwen2.5-1.5B fit, then use the measured memory and
-runtime to set the full matched-size campaign in `docs/gpu_campaign.md`.
+The subsequent 1.5B and 3B campaigns below used these validated loaders.
 
 ## Position-aware regression check
 
@@ -188,3 +187,135 @@ The L20 sweep and `role_130` causal result also survived qualitatively:
 The pair is stable as a ranked causal near-collision, but not as a binary
 member of an arbitrary final-JS < 0.02 class. Continuous distances and control
 comparisons are the defensible report.
+
+## 3B production lens
+
+`Qwen/Qwen2.5-3B` revision
+`3aab1f1954e9cc14eb9509a215f9e5ca08227a9b` was fitted at normalized layers
+`[5, 10, 15, 20, 25, 30, 34]`, sequence length 96, in BF16.
+
+One-prompt `dim_batch` pilots:
+
+| dim_batch | seconds | peak CUDA GiB |
+|---:|---:|---:|
+| 2 | 77 | 6.550 |
+| 4 | 40 | 7.209 |
+| 8 | 28 | 8.405 |
+
+Batch 2 versus 4 and batch 4 versus 8 differed by approximately 3-4% in
+relative Frobenius norm at the earliest layer, falling below 1% near the top.
+Production fits therefore fixed `dim_batch=8`; BF16 batch sensitivity remains
+a recorded numerical uncertainty.
+
+The 100-prompt lens took 2,776 cumulative fit seconds across resumable
+1→20→50→100 runs. The final peak allocation was 8.408 GiB. Late-prompt
+running-mean changes were approximately 1.1-1.5%, with occasional larger
+prompt outliers.
+
+Transport convergence:
+
+| comparison | L5 | L10 | L15 | L20 | L25 | L30 | L34 |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| 20→50 | .318 | .288 | .265 | .279 | .241 | .161 | .035 |
+| 50→100 | .220 | .205 | .188 | .194 | .137 | .083 | .018 |
+
+As at 1.5B, raw early-layer transports converge more slowly than downstream
+readout metrics.
+
+## 3B E1 and competence
+
+The 100-prompt E1 results were stable relative to the 50-prompt lens:
+
+| eval | J-lens pass@1 | J-lens pass@10 | logit pass@1 | logit pass@10 |
+|---|---:|---:|---:|---:|
+| multihop | .11 | .51 | .06 | .30 |
+| typo | .04 | .15 | .05 | .35 |
+| association | .00 | .01 | .00 | .02 |
+
+The J-lens gives a broad-rank multihop advantage but not a general readout
+improvement. Its multihop pass@1 is lower than the 1.5B result (.17), while
+its pass@10 is similar (.51 versus .55).
+
+The 3B base model was unexpectedly weak on the synthetic behavioral probes:
+
+| category | 3B BF16 | 1.5B BF16 | 1.5B FP32 |
+|---|---:|---:|---:|
+| role reversal | 3% | 47% | 87% |
+| relation binding | 15% | 42% | 66% |
+| negation | 17% | 42% | 42% |
+| causal flip | 20% | 10% | 10% |
+| polysemy | 37% | 32% | 32% |
+| safety latent | 11% | 33% | 33% |
+
+This is non-monotonic benchmark competence, not evidence that scale itself
+damages binding. The base model may not follow the probe answer format
+consistently; an instruct-model axis is now a high-priority control.
+
+## 3B position-aware collision result
+
+At the preselected L25 comparison layer, the 100-prompt sweep produced 25
+unique both-correct answer-flip pairs but no legacy or strict collision under
+the existing behavior/distance thresholds. The closest all-position record
+was `bind_owed_023`:
+
+- final JS 0.032
+- scan JS 0.138
+- bag JS 0.059
+- minimum position top-20 overlap 0.176
+- behavior JS 0.321
+
+An exploratory sweep across all seven fitted layers produced 175 eligible
+pair-layer records from the same 25 unique pairs, again with zero strict
+all-position collisions. Several early-layer final-token distances were very
+small, but their all-position scan distances were approximately 0.6-0.7.
+This reproduces the inert-site failure mode of the original 0.5B collision
+claim rather than finding a new globally hidden state.
+
+The defensible first size-series conclusion is therefore heterogeneous:
+
+- 0.5B: clean final-token artifacts, no strict all-position collision.
+- 1.5B: a stable, causally active near-collision (`role_130`, scan JS
+  .030→.039) that beats readout controls but is threshold-sensitive.
+- 3B: no comparably tight all-position candidate in the 100-prompt,
+  seven-layer scan; closest scan JS .138, with a competence-limited probe set.
+
+## Matched 1.5B BF16 control
+
+A 100-prompt 1.5B lens was refitted under the 3B numerical regime: BF16,
+`dim_batch=8`, sequence length 96, and the same normalized seven-layer grid.
+It took 1,148 seconds and peaked at 4.504 GiB.
+
+Relative Frobenius differences from the 1.5B FP32 lens were:
+
+| L4 | L8 | L12 | L16 | L20 | L24 | L26 |
+|---:|---:|---:|---:|---:|---:|---:|
+| .0094 | .0071 | .0063 | .0058 | .0040 | .0029 | .0032 |
+
+The E1 scores were effectively identical to FP32. BF16 model inference did
+reduce confidence/competence on some behavioral probes, but the 1.5B-versus-3B
+separation remained large (for example, role-reversal both-correct 47% versus
+3%).
+
+`role_130` also survived the matched regime:
+
+- final JS 0.018
+- scan JS 0.042
+- bag JS 0.016
+- behavior JS 0.541
+- random-transport/logit-lens scan JS 0.323/0.160
+- final-token/full-statement patch transfer 0.00/0.99
+- 90%-mass visible/complement transfer 0.83/0.39
+
+Thus the 1.5B near-collision is not a FP32 artifact. The remaining limitation
+on the size comparison is the 3B base model's weak competence on this prompt
+format, not lens-fitting precision.
+
+## Null-control correction
+
+The completed sweep exposed a control-design invariant: applying one fixed
+vocabulary permutation to both readouts leaves pairwise JS, cosine, top-k
+overlap, and rank overlap unchanged. `ShuffledLens` is therefore valid for E1
+token-identity evaluations but vacuous for E2 distance calibration. Future E2
+runs exclude it; historical records retain it for provenance, and the
+analyzer omits it from distance-control tables. Random transport and the logit
+lens remain the applicable E2 controls.
