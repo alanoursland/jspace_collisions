@@ -12,7 +12,8 @@ The guiding question:
 
 Full motivation, hypotheses (H1–H5), and the twelve experiment families are in
 [`docs/research_program.md`](docs/research_program.md). The phased execution
-plan is in [`PLAN.md`](PLAN.md).
+plan is in [`PLAN.md`](PLAN.md). Concise result summaries are indexed in
+[`reports/`](reports/README.md).
 
 ## Repository layout
 
@@ -24,6 +25,7 @@ src/jspace/            Shared library
   lens/                J-lens interfaces and adapters
   patching/            Activation patching harness
 experiments/           One directory per experiment family (e01–e12)
+reports/               Concise lab reports and result summaries
 tests/                 Unit tests for the shared library
 scripts/               Environment checks and utilities
 data/                  Datasets and activation caches (gitignored payloads)
