@@ -76,6 +76,7 @@ def main() -> None:
     ap.add_argument("--model", default="Qwen/Qwen2.5-0.5B")
     ap.add_argument("--lens", required=True)
     ap.add_argument("--device", default="auto")
+    ap.add_argument("--prompt-format", choices=["raw", "chat"], default="raw")
     ap.add_argument(
         "--dtype",
         choices=["auto", "float32", "float16", "bfloat16"],
@@ -97,7 +98,12 @@ def main() -> None:
     out_dir = pathlib.Path(args.out)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    wrapper = ModelWrapper(args.model, device=args.device, dtype=args.dtype)
+    wrapper = ModelWrapper(
+        args.model,
+        device=args.device,
+        dtype=args.dtype,
+        prompt_format=args.prompt_format,
+    )
     lens = jlens.JacobianLens.load(args.lens)
     P_vis, rank = lens_visible_projector(lens.jacobians[args.layer], args.mass)
     print(f"lens-visible subspace at L{args.layer}: rank {rank}/{wrapper.d_model} "

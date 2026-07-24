@@ -310,6 +310,29 @@ Thus the 1.5B near-collision is not a FP32 artifact. The remaining limitation
 on the size comparison is the 3B base model's weak competence on this prompt
 format, not lens-fitting precision.
 
+## Matched 3B-Instruct control
+
+`Qwen/Qwen2.5-3B-Instruct` revision
+`aa8e72537993ba99e69dfaafa59ed015b17504d1` was evaluated under both the
+original raw prompts and the tokenizer-native chat template. Raw prompting
+substantially restored behavioral competence relative to the 3B base model:
+both-correct role-reversal accuracy rose from 3% to 59%, relation binding from
+15% to 54%, and negation from 17% to 67%. Chat formatting was mixed rather
+than uniformly better.
+
+A matched 100-prompt raw-context BF16 lens was fitted at layers
+`[5, 10, 15, 20, 25, 30, 34]`. It took 2,546 cumulative seconds and peaked at
+8.408 GiB. At preselected L25, the raw E2 sweep produced 160 competent
+answer-flip pairs and 27 legacy final-token hits, but zero strict all-position
+hits. Its nearest eligible candidate had scan JS .301 and behavior JS .610.
+
+The secondary chat transfer condition produced 22 legacy hits but also zero
+strict hits. Its closest final-token example had JS .007 yet scan JS .612,
+again exposing a strong distinguishing signal elsewhere in the statement.
+Because no applicable all-position near-collision survived, no causal patch
+was run. The full tables and limitations are in
+`reports/2026-07-23-3b-instruct-control.md`.
+
 ## Null-control correction
 
 The completed sweep exposed a control-design invariant: applying one fixed

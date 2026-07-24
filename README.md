@@ -64,5 +64,7 @@ The 0.5B CPU phase and first 1.5B/3B GPU size-series pass are complete. The
 core readout result replicated, but the strongest 0.5B final-token collision
 was behaviorally inert. At 1.5B a stable causal near-collision appeared, while
 the 100-prompt 3B sweep found no tight all-position collision across seven
-sampled layers. See `docs/gpu_campaign.md`, `PLAN.md`, and the dated lab
-notebook for calibrated results and remaining precision controls.
+sampled layers. A matched 3B-Instruct control restored much of the raw-prompt
+behavioral competence but likewise found no strict all-position collision.
+See `reports/`, `docs/gpu_campaign.md`, and `PLAN.md` for calibrated results
+and next tests.

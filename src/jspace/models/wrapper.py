@@ -18,6 +18,7 @@ import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 DEFAULT_MODEL = "Qwen/Qwen2.5-0.5B"
+PROMPT_FORMATS = ("raw", "chat")
 
 
 def resolve_device(device: str) -> torch.device:
@@ -67,10 +68,17 @@ class ModelWrapper:
         model_name: str = DEFAULT_MODEL,
         device: str = "auto",
         dtype: str = "auto",
+        prompt_format: str = "raw",
     ):
+        if prompt_format not in PROMPT_FORMATS:
+            raise ValueError(
+                f"unsupported prompt format {prompt_format!r}; "
+                f"choose one of {PROMPT_FORMATS}"
+            )
         self.model_name = model_name
         self.device = resolve_device(device)
         self.dtype = resolve_dtype(dtype, self.device)
+        self.prompt_format = prompt_format
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
         hf = AutoModelForCausalLM.from_pretrained(model_name, dtype=self.dtype)
         hf.to(self.device)
@@ -81,8 +89,21 @@ class ModelWrapper:
         self.d_model = self.lens_model.d_model
         self.vocab_size = hf.config.vocab_size
 
-    def encode(self, text: str, max_tokens: int = 512) -> torch.Tensor:
+    def format_prompt(self, text: str) -> str:
+        """Format one user prompt for raw completion or native chat inference."""
+        if self.prompt_format == "raw":
+            return text
+        return self.tokenizer.apply_chat_template(
+            [{"role": "user", "content": text}],
+            tokenize=False,
+            add_generation_prompt=True,
+        )
+
+    def _encode_text(self, text: str, max_tokens: int = 512) -> torch.Tensor:
         return self.lens_model.encode(text, max_length=max_tokens)
+
+    def encode(self, text: str, max_tokens: int = 512) -> torch.Tensor:
+        return self._encode_text(self.format_prompt(text), max_tokens)
 
     @torch.no_grad()
     def capture(
@@ -115,16 +136,19 @@ class ModelWrapper:
     ) -> dict[str, float]:
         """Log P(answer | prompt) summed over the answer's tokens.
 
-        Answers are scored as continuations " {answer}" of the prompt.
+        Answers are scored as continuations " {answer}" of a raw prompt or
+        directly after the assistant-generation marker of a chat prompt.
         `patches` (list of jspace.patching.hooks.ResidualPatch) are applied
         during each scoring forward; they must target prompt-prefix positions.
         """
         from jspace.patching.hooks import apply_patches
 
         scores: dict[str, float] = {}
+        formatted_prompt = self.format_prompt(prompt)
+        answer_separator = " " if self.prompt_format == "raw" else ""
         for ans in answers:
-            prompt_ids = self.encode(prompt)
-            full_ids = self.encode(prompt + " " + ans)
+            prompt_ids = self._encode_text(formatted_prompt)
+            full_ids = self._encode_text(formatted_prompt + answer_separator + ans)
             n_prompt = prompt_ids.shape[1]
             if full_ids.shape[1] <= n_prompt:
                 raise ValueError(f"answer {ans!r} adds no tokens")

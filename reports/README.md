@@ -20,6 +20,7 @@ checksums.
 | 2026-07-22 | [0.5B CPU baseline](2026-07-22-0.5b-cpu-baseline.md) | Original final-token collision was attached to a causally inert site |
 | 2026-07-23 | [GPU model-size series](2026-07-23-gpu-model-size-series.md) | 1.5B has a causal near-collision; 3B has no comparably tight candidate |
 | 2026-07-23 | [Methodology and control audit](2026-07-23-methodology-and-control-audit.md) | Position-aware monitoring and applicable controls materially revise the claims |
+| 2026-07-23 | [3B-Instruct control](2026-07-23-3b-instruct-control.md) | Restored raw-prompt competence does not reveal a strict all-position collision |
 
 ## Current overall conclusion
 
@@ -28,6 +29,5 @@ globally faithful coordinate system. They also do not yet establish a broad
 class of hidden J-space fibers. The strongest result is narrower: at 1.5B,
 one behaviorally active prompt pair remains unusually close under the
 position-aware J-lens relative to controls, but its classification is
-threshold-sensitive. At 0.5B and 3B, no strict all-position collision was
-found in the completed sweeps.
-
+threshold-sensitive. At 0.5B, 3B base, and the matched 3B-Instruct control, no
+strict all-position collision was found in the completed sweeps.

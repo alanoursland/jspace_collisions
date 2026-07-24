@@ -56,6 +56,12 @@ def main() -> None:
     )
     ap.add_argument("--device", default="auto", help="auto, cpu, cuda, or cuda:N")
     ap.add_argument(
+        "--prompt-format",
+        choices=["raw", "chat"],
+        default="raw",
+        help="fit on raw corpus strings or tokenizer-native user chat prompts",
+    )
+    ap.add_argument(
         "--dtype",
         choices=["auto", "float32", "float16", "bfloat16"],
         default="auto",
@@ -73,6 +79,15 @@ def main() -> None:
     hf = transformers.AutoModelForCausalLM.from_pretrained(args.model, dtype=dtype)
     hf.to(device)
     tok = transformers.AutoTokenizer.from_pretrained(args.model)
+    if args.prompt_format == "chat":
+        prompts = [
+            tok.apply_chat_template(
+                [{"role": "user", "content": prompt}],
+                tokenize=False,
+                add_generation_prompt=True,
+            )
+            for prompt in prompts
+        ]
     model = jlens.from_hf(hf, tok)
 
     out = pathlib.Path(args.out)
@@ -116,6 +131,7 @@ def main() -> None:
         "model_path": args.model if args.model_id else None,
         "model_revision": args.model_revision,
         "corpus": args.corpus,
+        "prompt_format": args.prompt_format,
         "n_prompts": len(prompts),
         "max_seq_len": args.max_seq_len,
         "dim_batch": args.dim_batch,

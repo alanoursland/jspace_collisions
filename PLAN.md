@@ -152,14 +152,13 @@ this study is publishable even if the rest of the program shifts.
 
 ## Immediate next actions
 
-1. Add a Qwen2.5-3B-Instruct competence/readout axis; the 3B base model is weak
-   on the current role/binding answer format despite stronger multihop E1
-   readout.
-2. Expand paraphrase/seed coverage around the 1.5B `role_130` near-collision.
-3. Replace binary collision counts with continuous scan-distance versus
+1. Expand paraphrase/seed coverage around the 1.5B `role_130` near-collision.
+2. Replace binary collision counts with continuous scan-distance versus
    behavior-distance curves calibrated against controls.
-4. Causally patch only candidates that remain unusually close under the
+3. Causally patch only candidates that remain unusually close under the
    all-position scan metric.
+4. Fit a chat-context 3B-Instruct lens only if pursuing the E8
+   context-specific-lens question; the raw-context transfer test is complete.
 5. Evaluate whether activation or gradient checkpointing can extend the same
    estimator beyond 3B without changing its mathematical target.
 

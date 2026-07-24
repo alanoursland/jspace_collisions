@@ -59,6 +59,7 @@ def main() -> None:
     ap.add_argument("--model", default="Qwen/Qwen2.5-0.5B")
     ap.add_argument("--lens", required=True)
     ap.add_argument("--device", default="auto")
+    ap.add_argument("--prompt-format", choices=["raw", "chat"], default="raw")
     ap.add_argument(
         "--dtype",
         choices=["auto", "float32", "float16", "bfloat16"],
@@ -76,7 +77,12 @@ def main() -> None:
     out_dir = pathlib.Path(args.out)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    wrapper = ModelWrapper(args.model, device=args.device, dtype=args.dtype)
+    wrapper = ModelWrapper(
+        args.model,
+        device=args.device,
+        dtype=args.dtype,
+        prompt_format=args.prompt_format,
+    )
     jl = JLensAdapter.load(args.lens, wrapper)
     layers = args.layers or jl.source_layers
     lenses = [
@@ -125,7 +131,10 @@ def main() -> None:
         "# E1 lens-quality evals",
         "",
         f"model: {args.model} | lens: {args.lens} | layers: {layers}",
-        f"device: {wrapper.device} | dtype: {wrapper.dtype}",
+        (
+            f"device: {wrapper.device} | dtype: {wrapper.dtype} | "
+            f"prompt format: {wrapper.prompt_format}"
+        ),
         "",
     ]
     lines.append("| eval | lens | " + " | ".join(f"pass@{k}" for k in args.ks) + " | n |")

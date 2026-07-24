@@ -37,6 +37,12 @@ def test_kl_and_js():
     assert 0 <= js_divergence(p, q) <= np.log(2) + 1e-9
 
 
+def test_js_roundoff_never_returns_negative():
+    p = np.array([1.0 - 3e-15, 1e-15, 1e-15, 1e-15])
+    q = p.copy()
+    assert js_divergence(p, q) >= 0.0
+
+
 def test_topk_indices_sorted_desc():
     logits = np.array([0.1, 5.0, 3.0, 4.0, 0.2])
     assert topk_indices(logits, 3).tolist() == [1, 3, 2]

@@ -54,7 +54,11 @@ def js_divergence(p: np.ndarray, q: np.ndarray) -> float:
     p = np.asarray(p, dtype=np.float64)
     q = np.asarray(q, dtype=np.float64)
     m = 0.5 * (p + q)
-    return 0.5 * kl_divergence(p, m) + 0.5 * kl_divergence(q, m)
+    divergence = 0.5 * kl_divergence(p, m) + 0.5 * kl_divergence(q, m)
+    # Floating-point roundoff can produce a tiny negative value for nearly
+    # identical high-dimensional distributions. JS is non-negative by
+    # definition, so enforce its mathematical lower bound.
+    return max(0.0, divergence)
 
 
 def topk_indices(logits: np.ndarray, k: int) -> np.ndarray:
